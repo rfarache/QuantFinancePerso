@@ -1,0 +1,79 @@
+import holidays
+import os
+import pandas as pd
+
+# 📁 Chemin vers le dossier contenant les fichiers .txt
+data_folder = "C:/Users/annie/Documents/projetPersoCode/projetFinancePythonMt5/challenge2/3indicesDifferents"
+
+# 📦 DataFrame final vide au départ
+df_final = None
+
+# 🔁 Boucle sur chaque fichier .txt dans le dossier
+for file in os.listdir(data_folder):
+    file_path = os.path.join(data_folder, file)
+
+    # On vérifie que c’est bien un fichier .txt
+    if os.path.isfile(file_path) and file.endswith(".txt"): 
+        print(f"Lecture du fichier : {file}")       
+
+        # 🧠 On extrait le nom de l'indice (ex: ES.txt -> ES)
+        index_name = file.split("_")[0]
+
+
+        # 📥 Lecture du fichier, ajout manuel des noms de colonnes
+        df = pd.read_csv(file_path, sep=",", header=None, names=["timestamp", "open", "high", "low", "close","volume"])
+
+        # ⏱️ Conversion de la colonne "timestamp" en format datetime
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+
+        # 📆 Rééchantillonnage en données horaires
+        df.set_index("timestamp", inplace=True)
+        df_hourly = df.resample("1H").agg({
+            "open": "first",
+            "high": "max",
+            "low": "min",
+            "close": "last"
+        }).dropna()
+
+
+        # 📊 Ajouter la variation horaire en pourcentage
+        df_hourly["variation_heure"] = ((df_hourly["close"] - df_hourly["open"]) / df_hourly["open"]) * 100
+
+        # 🏷️ Renommer les colonnes avec le nom de l’indice
+        df_hourly.columns = [f"{index_name}_{col}" for col in df_hourly.columns]
+
+        # 🔗 Fusion avec le DataFrame final
+        if df_final is None:
+            df_final = df_hourly
+        else:
+            df_final = df_final.join(df_hourly, how="outer")
+
+# 📝 Sauvegarde du résultat
+df_final.to_csv("data_fusionnee.csv")
+
+print("\n✅ Fusion terminée. Aperçu :")
+print(df_final.head())
+
+#  Supprimer les week-ends
+df_final = df_final[~df_final.index.weekday.isin([5, 6])]
+
+#  Récupérer les jours fériés de la bourse de New York (NYSE)
+us_holidays = holidays.financial_holidays("NYSE", years=range(2008, 2024))
+jours_feries = pd.to_datetime(list(us_holidays.keys()))
+
+#  Supprimer les jours fériés
+df_final = df_final[~df_final.index.normalize().isin(jours_feries)]
+
+#les 3 prochaines lignes du code sont la pour trouver la premiere ligne du fichier ayant tout les indices sans aucun nan, car le premiere ligne doit contenir tout les indices
+# Liste des colonnes importantes (open, high, low, close de chaque indice)
+colonnes_importantes = [col for col in df_final.columns if any(x in col for x in ["open", "high", "low", "close"])]
+
+# Trouver le premier index où il n'y a aucun NaN dans les colonnes importantes
+premiere_ligne_valide = df_final[colonnes_importantes].dropna().index.min()
+
+# Garder uniquement les lignes à partir de cette première ligne complète
+df_final = df_final[df_final.index >= premiere_ligne_valide]
+
+# Sauvegarder le DataFrame final dans un fichier CSV
+df_final.to_csv("C:/Users/annie/Documents/projetPersoCode/projetFinancePythonMt5/fusion_indices.csv")
+print("✅ Fichier fusion_indices.csv enregistré avec succès.")

@@ -1,0 +1,14 @@
+# Ignore l'environnement virtuel
+myEnv/
+
+# Ignore les fichiers temporaires Python
+__pycache__/
+*.pyc
+
+# Ignore les fichiers de configuration système ou éditeur
+.vscode/
+.DS_Store
+
+# Ignore les fichiers CSV de travail (si tu veux)
+*.csv
+*.txt
