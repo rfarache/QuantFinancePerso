@@ -2,13 +2,13 @@ import holidays
 import os
 import pandas as pd
 
-# 📁 Chemin vers le dossier contenant les fichiers .txt
+# Chemin vers le dossier contenant les fichiers .txt
 data_folder = "C:/Users/annie/Documents/projetPersoCode/projetFinancePythonMt5/challenge2/3indicesDifferents"
 
-# 📦 DataFrame final vide au départ
+#  DataFrame final vide au départ
 df_final = None
 
-# 🔁 Boucle sur chaque fichier .txt dans le dossier
+#  Boucle sur chaque fichier .txt dans le dossier
 for file in os.listdir(data_folder):
     file_path = os.path.join(data_folder, file)
 
@@ -16,17 +16,22 @@ for file in os.listdir(data_folder):
     if os.path.isfile(file_path) and file.endswith(".txt"): 
         print(f"Lecture du fichier : {file}")       
 
-        # 🧠 On extrait le nom de l'indice (ex: ES.txt -> ES)
-        index_name = file.split("_")[0]
+        #  On extrait le nom de l'indice (ex: ES.txt -> ES)
+        index_name = os.path.splitext(file)[0]
 
 
-        # 📥 Lecture du fichier, ajout manuel des noms de colonnes
+
+        #  Lecture du fichier, ajout manuel des noms de colonnes
         df = pd.read_csv(file_path, sep=",", header=None, names=["timestamp", "open", "high", "low", "close","volume"])
 
-        # ⏱️ Conversion de la colonne "timestamp" en format datetime
+        #  Conversion de la colonne "timestamp" en format datetime
         df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-        # 📆 Rééchantillonnage en données horaires
+        print(f"{index_name} - Format des timestamps convertis :")
+        print(df["timestamp"].head())
+
+
+        #  Rééchantillonnage en données horaires
         df.set_index("timestamp", inplace=True)
         df_hourly = df.resample("1H").agg({
             "open": "first",
@@ -36,24 +41,32 @@ for file in os.listdir(data_folder):
         }).dropna()
 
 
-        # 📊 Ajouter la variation horaire en pourcentage
+        #  Ajouter la variation horaire en pourcentage
         df_hourly["variation_heure"] = ((df_hourly["close"] - df_hourly["open"]) / df_hourly["open"]) * 100
 
-        # 🏷️ Renommer les colonnes avec le nom de l’indice
+        # Ajouter la moyenne glissante sur 20 périodes
+        df_hourly["moyenne_variation_20"] = df_hourly["variation_heure"].rolling(window=20).mean()
+
+        #  Renommer les colonnes avec le nom de l’indice
         df_hourly.columns = [f"{index_name}_{col}" for col in df_hourly.columns]
 
-        # 🔗 Fusion avec le DataFrame final
+        #  Fusion avec le DataFrame final
         if df_final is None:
             df_final = df_hourly
         else:
             df_final = df_final.join(df_hourly, how="outer")
 
-# 📝 Sauvegarde du résultat
+
+for file in os.listdir(data_folder):
+    print("Fichier détecté :", file)
+
+""""
+#  Sauvegarde du résultat
 df_final.to_csv("data_fusionnee.csv")
 
-print("\n✅ Fusion terminée. Aperçu :")
+print("\n Fusion terminée. Aperçu :")
 print(df_final.head())
-
+"""
 #  Supprimer les week-ends
 df_final = df_final[~df_final.index.weekday.isin([5, 6])]
 
